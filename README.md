@@ -1,42 +1,60 @@
-# Moonrite — Fluxos & Progressão
+# Moonrite — Compêndio
 
-Ferramenta de design para visualizar e iterar a economia e a progressão de *Moonrite*.
-É um **modelo de design puro** (ontologia stricto sensu): entidades, relações de economia
-e o sistema de **chave & cadeado**. Sem status de produção, esforço ou responsáveis —
-isso vive no Notion do time.
+Ferramenta de design para *Moonrite*: um **livro navegável** onde se aprende cada
+entidade do jogo, com uma **área de autoria** que alimenta o livro automaticamente.
+É um modelo de design puro (ontologia stricto sensu) — sem status de produção,
+esforço ou responsáveis. Isso vive no Notion do time.
 
-## O que tem
+Um único modelo compartilhado (JSON) alimenta quatro abas:
 
-- **Chave & Cadeado** — a progressão como gates: cada trava (🔒) exige uma chave (🔑)
-  para abrir. Duas colunas: progressão central (crítico) e ramos opcionais. Clique
-  numa trava para editar; use "+ Novo gate" para introduzir novas travas.
-- **Fluxos de economia** — todas as receitas (craft / refino / drop / feed) como
-  insumos → produto. Filtrável por caminho. Clique para editar; "+ Nova receita" cria fluxos novos.
-- **Explorer** — clique em qualquer entidade e veja suas relações nas duas direções:
-  produzida por, usada em, e para quais gates ela é a chave. Navega entre entidades e fluxos.
+- **Compêndio** — o livro. Navegação por categoria e uma página rica por entidade:
+  natureza, descrição, stats específicos do tipo, e relações clicáveis
+  (produzido por / usado em / é chave para). O **Player** é uma página aqui também,
+  com seus stats e os verbos que executa.
+- **Autoria** — formulários para criar/editar entidades, receitas e gates. Cada tipo
+  de entidade tem seus próprios campos (arma tem dano; espírito tem comando e
+  expiração; área tem conteúdo). O que você cria aqui aparece na hora nas outras abas.
+- **Fluxos** — a economia como insumos → produto, por caminho (crítico/opcional).
+- **Chave & Cadeado** — a progressão como gates: cada trava exige uma chave.
+  Duas colunas: progressão central e ramos opcionais.
 
-Tudo é editável. O modelo é salvo no navegador (localStorage) e pode ser exportado/importado
-como JSON — é assim que você versiona no git ou compartilha cenários com o time.
+Tudo editável. O modelo é salvo no navegador (localStorage) e pode ser
+exportado/importado como JSON — é assim que você versiona no git ou compartilha
+cenários com o time.
+
+## Arquivos
+
+- `index.html` — estrutura + estilos
+- `app.js` — toda a lógica e o modelo padrão
+- `README.md`, `.gitignore`
+
+`index.html` e `app.js` precisam ficar **na mesma pasta** (o HTML carrega
+`<script src="app.js">`).
 
 ## Rodar localmente
 
-É um único arquivo estático. Basta abrir `index.html` no navegador, ou servir:
+Precisa ser servido (o `file://` bloqueia o carregamento do `app.js` em alguns navegadores):
 
 ```bash
+cd moonrite-flows
 python3 -m http.server 8000
 # abra http://localhost:8000
 ```
 
 ## Colocar no ar
 
-Qualquer host de site estático serve. Duas opções rápidas:
+Host de site estático qualquer serve. **Importante:** o `index.html` tem que ficar
+na **raiz** do que for publicado — foi provavelmente isso que quebrou o deploy
+anterior (arquivo aninhado numa subpasta -> 404).
 
-**GitHub Pages** (junto do repo):
-1. Faça push deste repo pro GitHub (veja abaixo).
-2. Settings → Pages → Source: branch `main`, pasta `/root`.
-3. A URL sai em `https://<usuario>.github.io/<repo>/`.
+**GitHub Pages:**
+1. Push do repo pro GitHub (abaixo).
+2. Settings -> Pages -> Source: branch `main`, pasta `/root`.
+3. URL: `https://<usuario>.github.io/<repo>/`.
 
-**Netlify Drop** (sem repo): arraste `index.html` para https://app.netlify.com/drop.
+**Netlify Drop** (sem repo): arraste os **dois arquivos** (`index.html` + `app.js`)
+juntos -- ou a pasta, contanto que o `index.html` fique na raiz -- para
+https://app.netlify.com/drop.
 
 ## Versionar no git
 
@@ -44,12 +62,11 @@ Qualquer host de site estático serve. Duas opções rápidas:
 cd moonrite-flows
 git init
 git add .
-git commit -m "Moonrite: ferramenta de fluxos e progressão"
+git commit -m "Moonrite: compendio de design"
 git branch -M main
 git remote add origin git@github.com:<usuario>/moonrite-flows.git
 git push -u origin main
 ```
 
-Para compartilhar um cenário de balanceamento específico com o time, use **Exportar modelo**
-no rodapé da ferramenta e comite o `moonrite-modelo.json` no repo, ou mande no chat.
-Quem recebe usa **Importar modelo**.
+Para compartilhar um cenário específico com o time, use **Exportar modelo** e comite
+o `moonrite-modelo.json`, ou mande no chat. Quem recebe usa **Importar modelo**.
