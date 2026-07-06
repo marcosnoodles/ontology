@@ -97,6 +97,8 @@ function defaultModel(){
     // --- Consumables ---
     e("Mushroom Skewer","Consumable","estendido","Espetinho de cogumelo.","Buff temporário. Cozinhado a partir de Mushroom.",{effect:"+10 vida, +15 stamina máx",duration:"5min",obtain:"Cozinha (Mushroom)"}),
     e("Grilled Meat","Consumable","estendido","Carne grelhada.","Buff temporário. Cozinhado a partir de Boar Meat.",{effect:"+25 vida máx",duration:"20min",obtain:"Cozinha (Boar Meat)"}),
+    e("Sautéed Mushrooms","Consumable","opcional","Cogumelos salteados.","Consumível de buff cozinhado a partir de Mushroom. Está no detonado do time.",{effect:"Buff (a definir)",duration:"A definir",obtain:"Cozinha (Mushroom)"}),
+    e("Grilled Meat and Mushrooms","Consumable","opcional","Carne com cogumelos.","Consumível combinado (Boar Meat + Mushroom). Está no detonado do time.",{effect:"Buff combinado (a definir)",duration:"A definir",obtain:"Cozinha (Boar Meat + Mushroom)"}),
 
     // --- Stations ---
     e("Cauldron","Station","critico","O coração do jogo.","Estação central. Restaurada com Branches, evolui por níveis conforme é alimentada, e cada nível desbloqueia um novo espírito. Pertence ao sistema Loop do Cauldron.",{makes:"Spirits, Stone Sword",partOf:"Loop do Cauldron"}),
@@ -105,7 +107,7 @@ function defaultModel(){
     e("Tannery","Station","estendido","Curtume.","Refina Boar Hide em Leather. Pertence ao Sistema de Refino.",{makes:"Leather",partOf:"Sistema de Refino"}),
 
     // --- Systems (mãe) ---
-    e("Loop do Cauldron","System","critico","O motor de progressão.","Alimentar o Cauldron sobe seu nível; cada nível desbloqueia um novo tipo de espírito e novas áreas. É o loop central que amarra coleta, craft e progressão. Tem quatro estados: Lv1 a Lv4.",{loop:"Alimentar → subir nível → desbloquear espírito/área",states:"Cauldron Lv1, Lv2, Lv3, Lv4",flows:"Restaurar Cauldron, Feed nível 2/3/4"}),
+    e("Loop do Cauldron","System","critico","O motor de progressão.","Alimentar o Cauldron sobe seu nível; cada nível desbloqueia um novo tipo de espírito e novas áreas. É o loop central que amarra coleta, craft e progressão. Tem quatro estados: Lv1 a Lv4. Mecânica de persistência (crítica): o estado/nível do Caldeirão persiste entre sessões.",{loop:"Alimentar → subir nível → desbloquear espírito/área",states:"Cauldron Lv1, Lv2, Lv3, Lv4",flows:"Restaurar Cauldron, Feed nível 2/3/4"}),
     e("Sistema de Combate","System","critico","Como o Player enfrenta o mundo.","Combate corpo-a-corpo com armas craftadas; inimigos dropam recursos. Alimenta o loot que volta pro Cauldron.",{loop:"Equipar arma → combater → lootar",states:"—",flows:"Loot do Boar, Loot do Dutra"}),
     e("Sistema de Refino","System","critico","Recurso cru vira componente.","Estações (Workbench, Tannery) transformam recursos crus em intermediários com timer. Ponte entre coleta e craft de armas/armaduras.",{loop:"Recurso cru → estação → componente",states:"—",flows:"Refinar Stick, Stone Blade, Bone Blade, Leather"}),
     e("Captura de Espírito","System","estendido","Comandar espíritos pra interagir.","O Player comanda um espírito (Q) para agir sobre o mundo sem se expor — capturar o Sapo sem tomar veneno é o caso-âncora.",{loop:"Comandar espírito → interagir → obter recurso",states:"—",flows:"Capturar Sapo"}),
@@ -117,12 +119,12 @@ function defaultModel(){
     e("Cauldron Lv4","System State","opcional","Cauldron pleno.","Desbloqueia o terceiro espírito (Light).",{system:"Loop do Cauldron",unlocks:"3º espírito",reachedBy:"Feed com 5 Root + 1 Light Flower"}),
 
     // --- Spirits ---
-    e("Nature Spirit","Spirit","critico","O primeiro companheiro.","Craftado no Cauldron. Comandado com Q para interagir com o mundo — captura o Sapo sem sofrer o veneno.",{command:"Q → interagir",ability:"Imune a veneno; captura Sapo",expires:"Sim"}),
+    e("Nature Spirit","Spirit","critico","O primeiro companheiro.","Craftado no Cauldron. Comandado com Q para interagir com o mundo — captura o Sapo sem sofrer o veneno. Companion Skills (opcional): espíritos podem ter habilidades ativas além do comando básico.",{command:"Q → interagir",ability:"Imune a veneno; captura Sapo. Companion Skills (opcional)",expires:"Sim"}),
     e("Flesh and Bone Spirit","Spirit","critico","O segundo companheiro.","Craftado com Bone + Boar Meat + uma espada. Desbloqueado no Cauldron nível 3.",{command:"Q",ability:"A definir",expires:"Sim"}),
     e("Light Spirit","Spirit","opcional","O terceiro companheiro.","Craftado com Light Flower + arma. Cauldron nível 4.",{command:"Q",ability:"A definir",expires:"Sim"}),
 
     // --- Creature ---
-    e("Sapo","Creature","estendido","Bicho ligeiro e traiçoeiro.","Foge quando o Player tenta pegar e solta veneno na falha. Só o Nature Spirit captura sem dano.",{behavior:"Foge, envenena",defeat:"Nature Spirit",drops:"Dead Frog"}),
+    e("Sapo","Creature","estendido","Bicho ligeiro e traiçoeiro.","Foge quando o Player tenta pegar e solta veneno na falha. Só o Nature Spirit captura sem dano. Persistência de NPCs (opcional): NPCs capturados/derrotados persistem entre sessões.",{behavior:"Foge, envenena",defeat:"Nature Spirit",drops:"Dead Frog"}),
 
     // --- Enemies ---
     e("Boar","Enemy","critico","Javali selvagem.","Ataca com investida (charge) quando o Player entra no alcance. Rodeia os POIs do Overworld.",{behavior:"Charge attack",hp:"A definir",damage:"A definir",drops:"Meat, Bone, Hide"}),
@@ -157,6 +159,8 @@ function defaultModel(){
     // cozinha (consumíveis)
     {name:"Cozinhar Mushroom Skewer",kind:"cozinha",station:"Cauldron",inputs:{Mushroom:2},out:{"Mushroom Skewer":1},path:"estendido"},
     {name:"Cozinhar Grilled Meat",kind:"cozinha",station:"Cauldron",inputs:{"Boar Meat":1},out:{"Grilled Meat":1},path:"estendido"},
+    {name:"Cozinhar Sautéed Mushrooms",kind:"cozinha",station:"Cauldron",inputs:{Mushroom:3},out:{"Sautéed Mushrooms":1},path:"opcional"},
+    {name:"Cozinhar Grilled Meat and Mushrooms",kind:"cozinha",station:"Cauldron",inputs:{"Boar Meat":1,Mushroom:1},out:{"Grilled Meat and Mushrooms":1},path:"opcional"},
     // feed (sobe estado do Cauldron)
     {name:"Restaurar Cauldron (Lv1)",kind:"feed",station:"Cauldron",inputs:{Branches:4},out:{"Cauldron Lv1":1},path:"critico"},
     {name:"Feed Cauldron Lv2",kind:"feed",station:"Cauldron",inputs:{Mushroom:5},out:{"Cauldron Lv2":1},path:"critico"},
