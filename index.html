@@ -99,7 +99,29 @@
   .input-row input[type=text]{ flex:2; } .input-row input[type=number]{ flex:1; max-width:64px; }
   .form-actions{ display:flex; gap:8px; margin-top:12px; }
   .cat-fields{ border-top:1px dashed var(--border); margin-top:10px; padding-top:12px; }
+  .combo-grid{ display:grid; grid-template-columns:280px 1fr; gap:20px; align-items:start; }
+  @media(max-width:760px){ .combo-grid{ grid-template-columns:1fr; } }
+  .combo-pick{ display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:7px; font-size:12.5px; cursor:pointer; }
+  .combo-pick:hover{ background:var(--surface-2); }
+  .combo-pick input{ accent-color:var(--key); }
+  .combo-row{ display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:9px 12px; margin-bottom:7px; }
+  .combo-row.marked{ border-color:var(--key); background:var(--key-bg); }
+  .combo-expr{ font-size:13px; min-width:180px; }
+  .combo-note{ flex:1; }
+  .combo-note input{ width:100%; font-size:12px; }
+  .combo-row .mk{ cursor:pointer; font-size:15px; }
+  .combo-actions{ display:flex; gap:6px; }
+  .combo-actions button{ font-size:11px; padding:4px 8px; }
   footer{ margin-top:26px; font-size:11px; color:var(--text-dim); }
+  .super-header{ display:flex; justify-content:space-between; font-family:'Spectral',serif; font-weight:600; font-size:13px; color:var(--key); text-transform:uppercase; letter-spacing:.05em; margin:16px 0 4px; padding-bottom:4px; border-bottom:1px solid var(--key); }
+  .badge.sup{ border-color:var(--key); color:var(--key); }
+  .cat-gloss{ font-size:12.5px; color:var(--text-dim); background:var(--surface-2); border-left:2px solid var(--border); padding:8px 12px; border-radius:0 6px 6px 0; margin:10px 0; }
+  .onto-super{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  .onto-super h4{ margin:0 0 4px; font-family:'Spectral',serif; font-size:15px; color:var(--key); }
+  .onto-super .sup-desc{ font-size:12.5px; color:var(--text-dim); margin-bottom:10px; }
+  .onto-cat{ padding:7px 0; border-top:1px solid var(--border); }
+  .onto-cat .oc-name{ font-weight:500; font-size:13px; }
+  .onto-cat .oc-desc{ font-size:12px; color:var(--text-dim); margin-top:2px; }
 </style>
 </head>
 <body>
@@ -111,6 +133,8 @@
     <button class="tab-btn" data-tab="autoria">Autoria</button>
     <button class="tab-btn" data-tab="fluxos">Fluxos</button>
     <button class="tab-btn" data-tab="prog">Chave &amp; Cadeado</button>
+    <button class="tab-btn" data-tab="combo">Combinações</button>
+    <button class="tab-btn" data-tab="onto">Ontologia</button>
   </div>
   <div class="tab-panel active" id="tab-comp">
     <div class="toolbar"><input type="text" id="comp-search" placeholder="Buscar…" oninput="renderNav()" style="min-width:220px;"></div>
@@ -158,6 +182,40 @@
     <div class="toolbar"><button class="primary" onclick="openGateForm()">+ Novo gate</button>
       <span class="muted">Crítico = esqueleto mínimo até o Devourer. Estendido = extrapolação do crítico. Opcional = ramos laterais.</span></div>
     <div class="prog-wrap" id="prog-wrap"></div>
+  </div>
+  <div class="tab-panel" id="tab-combo">
+    <p class="muted" style="margin-top:0;">Marque itens à esquerda para explorar combinações de 1, 2 ou 3 (com repetição). Marque uma combinação como ideia, anote um tema, e promova a receita quando quiser.</p>
+    <div class="combo-grid">
+      <div class="panel">
+        <h3>Itens <span class="muted" id="combo-pick-count"></span></h3>
+        <input type="text" id="combo-search" placeholder="filtrar itens…" oninput="renderComboPicker()" style="width:100%;margin-bottom:8px;">
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <button onclick="comboSelectAllVisible()" style="font-size:11px;">marcar visíveis</button>
+          <button onclick="comboClear()" style="font-size:11px;">limpar</button>
+        </div>
+        <div id="combo-picker" style="max-height:460px; overflow-y:auto;"></div>
+      </div>
+      <div>
+        <div class="toolbar">
+          <label class="muted">Tamanho:</label>
+          <select id="combo-size" onchange="renderCombos()">
+            <option value="all">1, 2 e 3</option>
+            <option value="1">só 1</option>
+            <option value="2">só 2</option>
+            <option value="3">só 3</option>
+          </select>
+          <label class="muted"><input type="checkbox" id="combo-only-marked" onchange="renderCombos()"> só marcadas</label>
+          <span class="muted" id="combo-count"></span>
+        </div>
+        <div id="combos-root"></div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-panel" id="tab-onto">
+    <p class="muted" style="margin-top:0;">A ontologia tem dois eixos: <strong>o que a entidade é</strong> (taxonomia com herança) e <strong>como ela se relaciona</strong> (as arestas). Item é o supertipo de tudo que entra no inventário; Gatherable é um prop do mundo que dropa itens — não é um item.</p>
+    <div id="onto-diagram"></div>
+    <h3 style="font-family:'Spectral',serif;color:var(--milestone);margin:24px 0 10px;">Glossário dos tipos</h3>
+    <div id="onto-glossary"></div>
   </div>
   <div class="toolbar" style="margin-top:20px;">
     <button onclick="exportModel()">⬇ Exportar modelo</button>

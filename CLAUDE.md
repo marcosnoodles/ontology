@@ -1,94 +1,138 @@
 # CLAUDE.md — Moonrite Compêndio
 
-Este arquivo é lido automaticamente pelo Claude Code ao abrir o projeto.
-É o contexto de handoff de uma sessão anterior (feita no chat). Leia por completo antes de agir.
+Lido automaticamente pelo Claude Code ao abrir o projeto. Leia por completo antes de agir.
 
-## O que é este projeto
+## Divisão de trabalho (importante)
 
-Ferramenta de **design** de *Moonrite* (jogo survival-crafting whimsical, demo pública set/2026).
-É a "ontologia" do jogo renderizada como um **livro navegável** + área de autoria.
-NÃO é ferramenta de produção: status, esforço, responsáveis e "não iniciado" **não entram aqui** —
-isso vive só no Notion do time. Este app é puramente entidades, economia e progressão.
+Este projeto é iterado em DOIS lugares:
+- **Claude no chat (claude.ai)** — onde o Marcos decide DESIGN: ontologia, modelagem, o que é
+  cada entidade e como se relacionam. As mudanças de modelo nascem lá e chegam aqui como briefing.
+- **Você (Claude Code, PC dedicado)** — onde o código vira commit e deploy: aplicar mudanças,
+  validar, commitar, publicar. Você também faz trabalho puro de código (bug, refactor, CSS).
 
-Dono: Marcos (CEO, Haki Studios). Trabalha em português, prefere entregas diretas e objetivas.
-Marcos NÃO é confortável com terminal — o motivo de estarmos migrando pro Claude Code é
-automatizar Git/deploy pra ele não fazer upload manual no GitHub. Ao guiá-lo, evite jargão de
-terminal; prefira "eu faço por você" a instruções de linha de comando.
+Se o Marcos pedir uma mudança que altera a ONTOLOGIA (o que é uma entidade, que tipos existem,
+como se relacionam), não improvise: aplique o que estiver no briefing. Se não houver briefing e a
+mudança for estrutural, diga a ele que vale decidir isso no chat de design primeiro.
 
-## Arquitetura (2 arquivos, sem build)
+## Contexto
 
-- `index.html` — shell HTML + todo o CSS. Carrega `<script src="app.js">`.
-- `app.js` — todo o modelo + lógica. O modelo padrão está em `defaultModel()`.
-- Site estático puro. Sem build step, sem framework, sem dependências de runtime.
-  (`node_modules/` existe só porque usei jsdom pra testar; está no .gitignore, ignore.)
-- Persistência do usuário final: `localStorage` (chave `mr_model`). Export/Import JSON no rodapé.
-- Há uma função de migração no fim do `app.js` que detecta modelo antigo e recria o novo.
+*Moonrite*: jogo survival-crafting whimsical, demo pública set/2026. Haki Studios (Marcos = CEO).
+Este app é a **ontologia do jogo como livro navegável** + autoria + análise.
 
-### O modelo (ontologia stricto sensu)
-Cada entidade: `{name, category, path, nature, description, fields{}}`.
-- `category` ∈ Player, Raw Resource, Item, Weapon/Tool, Consumable, Equipment, Station,
-  System, System State, Spirit, Creature, Enemy, Gatherable, Area. Cada uma tem campos
-  próprios definidos em `CATEGORIES`.
-- `path` ∈ `critico` | `estendido` | `opcional` (três trilhas).
-  - crítico = esqueleto mínimo até o boss final
-  - estendido = extrapolação do crítico (o jogador quase sempre faz, mas não é obrigatório)
-  - opcional = ramos laterais
-- **Raw Resource** = só obtido no mundo (gather/pickable/drop), NUNCA craftado. Folha do grafo.
-- **Item** = não-vivo, craftável OU obtível no mundo.
-- **System** = sistema-mãe (ex: Loop do Cauldron) com **System State** como sub-entidades
-  (Cauldron Lv1..Lv4). Relações sistema↔estado e estação↔sistema via campos.
+NÃO é ferramenta de produção. Status, esforço, responsáveis, "não iniciado" **não entram aqui** —
+isso vive só no Notion do time. Aqui é entidades, economia, progressão.
 
-Fluxos: `{id, name, kind, station, inputs{}, out{}, path}`.
-`kind` ∈ craft | refino | cozinha | feed | coleta. (coleta/feed NÃO contam como craft na
-análise de órfãos — drop de monstro é coleta, não craft.)
+Marcos trabalha em português, não é confortável com terminal. **Rode os comandos você mesmo**;
+não peça pra ele digitar. Confirme antes de qualquer push.
 
-Gates (chave & cadeado): `{id, name, key, unlocks, path}`.
+## Arquitetura
 
-Estado atual do modelo padrão: **50 entidades, 24 fluxos, 7 gates**. Zero órfãos, zero refs quebradas.
+- `index.html` — shell + todo o CSS. Carrega `<script src="app.js">`.
+- `app.js` — todo o modelo + lógica. Modelo padrão em `defaultModel()`.
+- Site estático puro: sem build, sem framework, sem dependências de runtime.
+  (`node_modules/` só existe pra testes jsdom; está no .gitignore.)
+- Estado do usuário: `localStorage` (chave `mr_model`). Export/Import JSON no rodapé.
+- Há migração automática no fim do `app.js` (`modelIsCurrent`) que recria o modelo quando a
+  taxonomia muda. **Se você mudar a taxonomia, atualize esse guard**, senão usuários antigos
+  ficam presos no modelo velho.
 
-### As 4 abas
-1. **Compêndio** — o livro. Nav por categoria + página rica por entidade (relações clicáveis).
-   Player é uma página aqui também.
-2. **Autoria** — formulários que criam entidades/fluxos/gates; alimentam as outras abas.
-3. **Fluxos** — economia agrupada por kind, filtro por caminho/tipo. Tem seção "Análise" que
-   lista entidades fora dos fluxos de craft (órfãos).
-4. **Chave & Cadeado** — progressão em 3 trilhas coloridas.
+## A ONTOLOGIA (o coração — leia com atenção)
 
-Ícones: emoji placeholder por entidade (`ENTITY_ICON`) com fallback por categoria (`CAT_ICON`).
+Dois eixos independentes. NÃO colapse os dois numa lista plana de categorias (erro já cometido).
+
+### Eixo 1 — o que a entidade É (taxonomia com HERANÇA)
+
+Cinco supertipos. Cada categoria pertence a um supertipo (campo `super` em `CATEGORIES`):
+
+- **Item** — tudo que entra no inventário. É o SUPERSET.
+  Subtipos: `Raw Resource`, `Component`, `Tool`, `Weapon`, `Equipment`, `Consumable`.
+- **WorldObject** — existe no mundo, NÃO entra no inventário.
+  Subtipos: `Gatherable`, `Station`, `Buildable`.
+- **Actor** — vivo/agente. Subtipos: `Player`, `Spirit`, `Creature`, `Enemy`.
+- **System** — abstração de regras. Subtipos: `System`, `System State`.
+- **Local** — os lugares. Categoria única `Local`, com campo `level` (Bioma/POI/Sub-área).
+
+### Regras duras da ontologia (violá-las é bug de modelagem)
+
+1. **Item é o conjunto maior**: qualquer coisa que caiba no inventário É um Item. Raw Resource,
+   equipamento, drop de monstro, drop de gatherable — todos herdam de Item.
+2. **Gatherable NÃO é um item.** É um prop no mundo (árvore, Boulders, moita) que **dropa** itens.
+   O prop é a FONTE; o item que cai é o Raw Resource. Ex: Regular Tree (Gatherable) dropa Log
+   (Raw Resource). Boulders dropa Stone.
+3. **Raw Resource nunca é craftado.** Só se obtém no mundo. É folha do grafo de craft.
+4. **pickable NÃO é um tipo** — é uma forma de obtenção (verbo/relação). Vai em campo, não em categoria.
+5. **Buildable nasce no mundo**, não passa pelo inventário. Por isso é WorldObject, não Item.
+   O tipo de peça (foundation/wall/roof/stair/opening) é um CAMPO (`pieceType`), não uma categoria.
+6. **Local é eixo próprio**, não um WorldObject. Um Local não *está* no mundo — ele *é* o mundo.
+   Aninha via campo `parent` (Bioma ⊃ POI ⊃ Sub-área) e lista conteúdo via campo `contains`.
+
+### Eixo 2 — relações (as arestas)
+
+`dropsItem` (Gatherable/Actor → Item), `craftedAt` (Item+Item → Station → Item), `refinedFrom`,
+`feeds` (Item → System State), `unlocks`, `gates` (chave → Local/State), `contains` (Local → tudo),
+`parent` (Local → Local), `commands` (Player → Spirit), `build` (recursos → Buildable).
+
+## Schema
+
+Entidade: `{name, category, path, nature, description, fields{}}`
+- `path` ∈ `critico` | `estendido` | `opcional`
+  (crítico = esqueleto mínimo até o boss final; estendido = extrapolação; opcional = ramo lateral)
+- `fields` são específicos por categoria (definidos em `CATEGORIES[cat].fields`)
+
+Fluxo: `{id, name, kind, station, inputs{}, out{}, path}`
+- `kind` ∈ `craft` | `refino` | `cozinha` | `feed` | `coleta` | `build`
+- **coleta e feed NÃO contam como craft** na análise de órfãos (drop ≠ craft).
+- craft-like (contam): craft, refino, cozinha, build.
+
+Gate: `{id, name, key, unlocks, path}`
+
+Combos (brainstorm): `model.combos[key] = {marked, note}`
+
+## Estado atual do modelo padrão
+
+**57 entidades · 29 fluxos · 7 gates · 5 eixos.** Zero órfãos, zero refs quebradas.
+Fluxos por tipo: coleta 6, craft 8, refino 4, cozinha 4, feed 4, build 3.
+
+## As 6 abas
+
+1. **Compêndio** — o livro. Nav agrupada por SUPERTIPO → categoria. Página de entidade mostra
+   badge de supertipo, glossário da categoria, stats, e relações clicáveis (produzido por / usado
+   em / é chave para / estados / contém / dentro de / encontrado em).
+2. **Autoria** — formulários de entidade/fluxo/gate, campos específicos por categoria.
+3. **Fluxos** — economia agrupada por kind + seção "Análise" (órfãos: craftáveis sem receita,
+   raws fora de fluxo, ghost refs).
+4. **Chave & Cadeado** — progressão em 3 trilhas coloridas (crítico/estendido/opcional).
+5. **Combinações** — gerador de combinações de 1/2/3 Items COM repetição. Usa só o supertipo Item
+   (exclui Gatherable/Buildable/Station/Actor). Marca ideia (★), anota tema, promove a receita.
+   Teto de 400 combinações na tela; o ideal é marcar 5–8 itens por vez.
+6. **Ontologia** — diagrama abstrato dos 5 eixos (SVG inline) + glossário rigoroso de cada tipo.
 
 ## Git / Deploy
 
 - Repo: https://github.com/marcosnoodles/ontology
-- Host: Netlify (site `ontologyhaki`), conectado ao repo via Git. **Publica da branch de
-  produção** — CONFIRMAR com Marcos se é `main`, `master` ou `v.26.07.02.01.01`.
-- Netlify: publish directory = raiz (`.`), sem build command (site estático).
-  `index.html` DEVE estar na raiz do repo — 404 anterior foi por arquivo aninhado.
-- Deploy = push na branch de produção → Netlify republica sozinho em ~1min.
-- Histórico de dor: nome de branch com pontos (`v.26.07.02.01.01`) causou falha de deploy
-  ("git ref does not exist"). Se reincidir, considere usar `main` como branch de produção e
-  marcar versões com **tags** em vez de branches.
+- Netlify (site `ontologyhaki`) publica da **master**. Publish dir = raiz (`.`), sem build command.
+- `index.html` DEVE ficar na raiz do repo (404 anterior foi por arquivo aninhado).
+- Deploy = push na master → Netlify republica sozinho (~1min).
+- Marcos quer **escolher branch vs master a cada vez**. SEMPRE pergunte antes do push.
+- Histórico: branch com pontos no nome (`v.26.07.02.01.01`) já quebrou o deploy
+  ("git ref does not exist"). Prefira `main`/master + tags pra versionar.
 
-## Tarefa imediata (o que Marcos quer agora)
+## Validação obrigatória antes de commitar
 
-1. Conectar este repositório ao Git localmente e fazer o deploy fácil, SEM ele mexer em terminal.
-   Você (Claude Code) faz commit/push por ele. Confirme a branch de produção antes do push.
-2. Garantir que `index.html` + `app.js` atualizados subam (os desta pasta são os corretos/finais).
-
-## Decisões em aberto (não resolver sozinho — perguntar a Marcos)
-
-- **Devourer vs Aquiles**: nesta ferramenta o boss final do 1º bioma é o **Devourer**, com
-  Aquiles como sub-boss. O time no Notion AINDA modela Aquiles como boss único. Marcos precisa
-  alinhar isso com o time; não "corrija" o modelo pra voltar ao Aquiles.
-- **Juntar num arquivo só**: Marcos considerou fundir index.html+app.js num único arquivo pra
-  virar upload único. Não decidido. Se ele topar, dá pra inline o app.js dentro do index.html.
-- **Coleta vs craft**: "Loot do Boar" e "Capturar Sapo" estão modelados como fluxos `kind:coleta`.
-  Modelagem intencional (drop ≠ craft). Só mexer se ele pedir.
-
-## Como validar antes de commitar
-
-Sempre rode um syntax check no app.js e cheque a integridade do modelo:
 ```
 node -c app.js
 ```
-E um teste rápido de integridade (órfãos + refs quebradas) — o modelo deve manter
-zero refs fantasma e zero craftáveis sem receita. Não introduza status/esforço/produção no modelo.
+E cheque a integridade do modelo: zero refs fantasma (nome citado em fluxo que não existe como
+entidade) e zero craftáveis sem receita. Se mudar a taxonomia, rode um boot headless (jsdom) pra
+garantir que as abas renderizam.
+
+Não introduza status/esforço/produção no modelo.
+
+## Decisões em aberto (NÃO resolver sozinho — perguntar ao Marcos)
+
+- **Devourer vs Aquiles**: aqui o boss final do 1º bioma é o **Devourer**, com Aquiles como
+  sub-boss. O time no Notion ainda modela Aquiles como boss único. Marcos precisa alinhar com o
+  time. NÃO "corrija" o modelo de volta pro Aquiles.
+- **Campo `level` do Local**: hoje é texto livre (Bioma/POI/Sub-área). Marcos considerou virar um
+  seletor fechado. Não decidido.
+- **Juntar index.html + app.js num arquivo só**: considerado, não decidido.
