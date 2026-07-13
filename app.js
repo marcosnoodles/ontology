@@ -4,9 +4,9 @@
 
 // Ícones placeholder (emoji) por categoria — servem de stand-in até a arte real
 const CAT_ICON = {
-  "Player":"🧙","Raw Resource":"🪵","Item":"📦","Weapon/Tool":"⚔️","Consumable":"🍢",
-  "Equipment":"🛡️","Station":"⚗️","System":"🔄","System State":"⬆️","Spirit":"✨",
-  "Creature":"🐸","Enemy":"👹","Gatherable":"🌿","Area":"🗺️"
+  "Player":"🧙","Raw Resource":"🪵","Component":"🔩","Tool":"🪓","Weapon":"⚔️",
+  "Consumable":"🍢","Equipment":"🛡️","Station":"⚗️","System":"🔄","System State":"⬆️",
+  "Spirit":"✨","Creature":"🐸","Enemy":"👹","Gatherable":"🌿","Buildable":"🧱","Local":"🗺️"
 };
 // Ícones específicos por entidade (placeholder) — sobrepõem o da categoria quando existem
 const ENTITY_ICON = {
@@ -20,6 +20,7 @@ const ENTITY_ICON = {
   "POI Inicial":"🏞️","Overworld":"🗺️","POI do Aquiles":"⚔️","POI do Devourer":"🕳️","POI Clareira":"🌳",
   "Player":"🧙",
   "Loop do Cauldron":"🔄","Sistema de Combate":"⚔️","Sistema de Refino":"🛠️","Captura de Espírito":"🫧",
+  "Sistema de Construção":"🏗️",
   "Cauldron Lv1":"1️⃣","Cauldron Lv2":"2️⃣","Cauldron Lv3":"3️⃣","Cauldron Lv4":"4️⃣"
 };
 function iconFor(ent){
@@ -32,31 +33,54 @@ function iconForName(name){
   return ENTITY_ICON[name] || "•";
 }
 
-// Campos específicos por categoria (schema da ontologia)
-const CATEGORIES = {
-  "Player":       { fields:[{k:"health",l:"Vida base"},{k:"stamina",l:"Stamina base"},{k:"verbs",l:"Verbos que executa"}] },
-  "Raw Resource": { fields:[{k:"obtain",l:"Como se obtém"},{k:"source",l:"Origem no mundo"},{k:"stack",l:"Empilha?"}] },
-  "Item":         { fields:[{k:"obtain",l:"Como se obtém (craft/mundo)"},{k:"role",l:"Papel"},{k:"stack",l:"Empilha?"}] },
-  "Weapon/Tool":  { fields:[{k:"damage",l:"Dano"},{k:"harvests",l:"Coleta / corta"},{k:"obtain",l:"Como se obtém"}] },
-  "Consumable":   { fields:[{k:"effect",l:"Efeito"},{k:"duration",l:"Duração"},{k:"obtain",l:"Como se obtém"}] },
-  "Equipment":    { fields:[{k:"bonus",l:"Bônus"},{k:"obtain",l:"Como se obtém"}] },
-  "Station":      { fields:[{k:"makes",l:"O que produz"},{k:"partOf",l:"Sistema a que pertence"}] },
-  "System":       { fields:[{k:"loop",l:"O loop em uma frase"},{k:"states",l:"Estados (se houver)"},{k:"flows",l:"Fluxos que agrupa"}] },
-  "System State": { fields:[{k:"system",l:"Sistema-mãe"},{k:"unlocks",l:"O que este estado desbloqueia"},{k:"reachedBy",l:"Como se chega"}] },
-  "Spirit":       { fields:[{k:"command",l:"Comando"},{k:"ability",l:"Habilidade"},{k:"expires",l:"Expira?"}] },
-  "Creature":     { fields:[{k:"behavior",l:"Comportamento"},{k:"defeat",l:"Como lidar"},{k:"drops",l:"Drops"}] },
-  "Enemy":        { fields:[{k:"behavior",l:"Comportamento"},{k:"hp",l:"Vida"},{k:"damage",l:"Dano"},{k:"drops",l:"Drops"}] },
-  "Gatherable":   { fields:[{k:"yields",l:"Rende"},{k:"tool",l:"Ferramenta"}] },
-  "Area":         { fields:[{k:"contains",l:"Contém"},{k:"entry",l:"Entrada"},{k:"exit",l:"Saída / gate"}] }
+// ---- Supertipos (eixo 1: o que a entidade É — com herança) ----
+const SUPERTYPES = {
+  "Item":        { label:"Item", glossary:"Tudo que entra no inventário do jogador. Supertipo: Raw Resource, Component, Tool, Weapon, Equipment e Consumable são todos Items." },
+  "WorldObject": { label:"World Object", glossary:"Existe no mundo e NÃO entra no inventário. Props coletáveis, estações e peças de construção já colocadas." },
+  "Actor":       { label:"Actor", glossary:"Entidade viva ou agente que age no mundo: o Player, espíritos, criaturas e inimigos." },
+  "System":      { label:"System", glossary:"Abstração de regras que amarra entidades e fluxos — não é uma coisa física, é uma mecânica." },
+  "Local":       { label:"Local", glossary:"Os lugares do jogo. Um Local não está no mundo — ele É o mundo: contém tudo o mais e se aninha em hierarquia (Bioma › POI › Sub-área)." }
 };
+
+// Campos + supertipo + glossário por categoria (schema da ontologia rigorosa)
+const CATEGORIES = {
+  // --- Item (entra no inventário) ---
+  "Player":       { super:"Actor",       glossary:"O agente controlado pelo jogador. Âncora de todos os verbos (coletar, craftar, comandar, equipar, construir).", fields:[{k:"health",l:"Vida base"},{k:"stamina",l:"Stamina base"},{k:"verbs",l:"Verbos que executa"}] },
+  "Raw Resource": { super:"Item",         glossary:"Matéria bruta. Só se obtém no mundo (colhida de Gatherable, drop de Actor, ou pickable no chão) — NUNCA é craftada. É folha do grafo de craft.", fields:[{k:"obtain",l:"Como se obtém"},{k:"source",l:"Origem no mundo"},{k:"stack",l:"Empilha?"}] },
+  "Component":    { super:"Item",         glossary:"Item intermediário: refinado de um Raw Resource numa estação. Entra em receitas maiores, raramente é usado sozinho.", fields:[{k:"refinedFrom",l:"Refinado de"},{k:"role",l:"Papel"},{k:"stack",l:"Empilha?"}] },
+  "Tool":         { super:"Item",         glossary:"Item equipável usado para colher/interagir com o mundo (não é arma de combate primário).", fields:[{k:"harvests",l:"Coleta / corta"},{k:"obtain",l:"Como se obtém"}] },
+  "Weapon":       { super:"Item",         glossary:"Item equipável de combate.", fields:[{k:"damage",l:"Dano"},{k:"obtain",l:"Como se obtém"}] },
+  "Equipment":    { super:"Item",         glossary:"Item vestível que dá bônus passivo (armadura, amuleto).", fields:[{k:"bonus",l:"Bônus"},{k:"obtain",l:"Como se obtém"}] },
+  "Consumable":   { super:"Item",         glossary:"Item de uso único que aplica um efeito temporário.", fields:[{k:"effect",l:"Efeito"},{k:"duration",l:"Duração"},{k:"obtain",l:"Como se obtém"}] },
+  // --- WorldObject (não entra no inventário) ---
+  "Gatherable":   { super:"WorldObject",  glossary:"Prop fixo no mundo que, ao ser colhido/quebrado, DROPA um ou mais Items. O prop não é um item — é a fonte (ex: árvore dropa Log; Boulders dropa Stone).", fields:[{k:"drops",l:"Dropa (item)"},{k:"tool",l:"Ferramenta"}] },
+  "Station":      { super:"WorldObject",  glossary:"Estação de trabalho no mundo onde receitas acontecem (craft, refino, cozinha).", fields:[{k:"makes",l:"O que produz"},{k:"partOf",l:"Sistema a que pertence"}] },
+  "Buildable":    { super:"WorldObject",  glossary:"Peça de construção granular. Nasce direto no mundo (não passa pelo inventário) consumindo recursos, e encaixa em grid. O tipo de peça (foundation, wall, roof, stair, opening) fica no campo abaixo.", fields:[{k:"pieceType",l:"Tipo de peça (foundation/wall/roof/stair/opening)"},{k:"buildCost",l:"Custo de construção"},{k:"partOf",l:"Sistema a que pertence"}] },
+  // --- Actor ---
+  "Spirit":       { super:"Actor",        glossary:"Companheiro craftado no Cauldron. Comandado pelo Player para agir no mundo; expira com o tempo.", fields:[{k:"command",l:"Comando"},{k:"ability",l:"Habilidade"},{k:"expires",l:"Expira?"}] },
+  "Creature":     { super:"Actor",        glossary:"Ser vivo não-hostil do mundo (fauna). Pode ser capturado/interagido, gerando drops.", fields:[{k:"behavior",l:"Comportamento"},{k:"defeat",l:"Como lidar"},{k:"drops",l:"Drops"}] },
+  "Enemy":        { super:"Actor",        glossary:"Ser vivo hostil. Combatido; dropa recursos ao ser derrotado.", fields:[{k:"behavior",l:"Comportamento"},{k:"hp",l:"Vida"},{k:"damage",l:"Dano"},{k:"drops",l:"Drops"}] },
+  // --- System ---
+  "System":       { super:"System",       glossary:"Sistema-mãe: agrupa fluxos e estados sob uma regra (ex: Loop do Cauldron, Sistema de Construção).", fields:[{k:"loop",l:"O loop em uma frase"},{k:"states",l:"Estados (se houver)"},{k:"flows",l:"Fluxos que agrupa"}] },
+  "System State": { super:"System",       glossary:"Estado discreto de um sistema (ex: Cauldron Lv1..4). Alcançado por um fluxo; desbloqueia algo.", fields:[{k:"system",l:"Sistema-mãe"},{k:"unlocks",l:"O que este estado desbloqueia"},{k:"reachedBy",l:"Como se chega"}] },
+  // --- Local (o eixo dos lugares) ---
+  "Local":        { super:"Local",        glossary:"Um lugar do jogo. O campo 'nível' diz se é Bioma, POI ou Sub-área; 'dentro de' aninha um lugar no outro; 'contém' lista tudo que vive nele.", fields:[{k:"level",l:"Nível (Bioma/POI/Sub-área)"},{k:"parent",l:"Dentro de (local-pai)"},{k:"contains",l:"Contém (entidades)"},{k:"entry",l:"Entrada"},{k:"exit",l:"Saída / gate"}] }
+};
+// helper: supertipo de uma categoria
+function superOf(cat){ return (CATEGORIES[cat]&&CATEGORIES[cat].super) || null; }
+function isItem(cat){ return superOf(cat)==='Item'; }
+function isBuildable(cat){ return cat==='Buildable'; }
+// níveis de Local
+const LOCAL_LEVELS = ["Bioma","POI","Sub-área"];
 
 // Ordem/pesos dos caminhos
 const PATHS = ["critico","estendido","opcional"];
 const PATH_LABEL = { critico:"crítico", estendido:"estendido", opcional:"opcional" };
 
 // Tipos de fluxo — separam craft de coleta pra análise de órfãos
-const FLOW_KIND = { craft:"craft", refino:"refino", coleta:"coleta", feed:"feed", cozinha:"cozinha" };
-const FLOW_KIND_LABEL = { craft:"craft", refino:"refino", coleta:"coleta", feed:"feed", cozinha:"cozinha" };
+const FLOW_KIND = { craft:"craft", refino:"refino", coleta:"coleta", feed:"feed", cozinha:"cozinha", build:"build" };
+const FLOW_KIND_LABEL = { craft:"craft", refino:"refino", coleta:"coleta", feed:"feed", cozinha:"cozinha", build:"build" };
+
 
 function defaultModel(){
   const e=(name,category,path,nature,description,fields)=>({name,category,path:path||'critico',nature:nature||'',description:description||'',fields:fields||{}});
@@ -74,21 +98,25 @@ function defaultModel(){
     e("Bone","Raw Resource","critico","Osso do javali.","Drop do Boar. Compõe spirit e Bone Blade.",{obtain:"Drop de monstro",source:"Boar",stack:"Sim"}),
     e("Boar Hide","Raw Resource","estendido","Couro do javali.","Drop do Boar. Refinado em Leather na Tannery.",{obtain:"Drop de monstro",source:"Boar",stack:"Sim"}),
     e("Root","Raw Resource","opcional","Raiz.","Drop do Dutra. Alimenta o Cauldron nível 4.",{obtain:"Drop de monstro",source:"Dutra",stack:"Sim"}),
+    e("Light Flower","Raw Resource","opcional","Flor luminosa.","Colhida da moita luminosa no POI Clareira. Alimenta o Cauldron nível 4 e crafta o Light Spirit.",{obtain:"Colhida (Gatherable)",source:"Light Flower Bush",stack:"Sim"}),
 
-    // --- Gatherables (nós de coleta no mundo) ---
-    e("Boulders","Gatherable","estendido","Pedregulho.","Quebra em Stone com ferramenta.",{yields:"Stone",tool:"Crude Axe"}),
-    e("Light Flower","Gatherable","opcional","Flor luminosa.","Coletada no POI Clareira. Alimenta o Cauldron nível 4 e crafta o Light Spirit.",{yields:"Light Flower",tool:"Mão"}),
+    // --- Gatherables (props no mundo que DROPAM itens; não são itens) ---
+    e("Boulders","Gatherable","estendido","Pedregulho no mundo.","Prop que, quebrado com ferramenta, dropa Stone. O pedregulho não vai pro inventário — o Stone que ele solta, sim.",{drops:"Stone",tool:"Crude Axe"}),
+    e("Regular Tree","Gatherable","critico","Árvore.","Prop que, cortado, dropa Log. A árvore é a fonte; o Log é o item.",{drops:"Log",tool:"Crude Axe"}),
+    e("Light Flower Bush","Gatherable","opcional","Moita luminosa.","Prop no POI Clareira que dropa Light Flower.",{drops:"Light Flower",tool:"Mão"}),
 
-    // --- Items (craftados OU obtidos; não-vivos) ---
-    e("Stick","Item","critico","Refinado de Log.","Componente de armas. Feito na Artisan Workbench.",{obtain:"Refino (Log)",role:"Componente de arma",stack:"Sim"}),
-    e("Stone Blade","Item","critico","Refinado de Stone.","Gume que compõe a Stone Sword.",{obtain:"Refino (Stone)",role:"Componente de arma",stack:"Sim"}),
-    e("Bone Blade","Item","opcional","Gume de osso.","Refinado de Bone; compõe a Bone Sword.",{obtain:"Refino (Bone)",role:"Componente de arma",stack:"Sim"}),
-    e("Leather","Item","estendido","Couro curtido.","Refinado de Boar Hide na Tannery.",{obtain:"Refino (Boar Hide)",role:"Componente de armadura",stack:"Sim"}),
+    // --- Components (intermediários refinados) ---
+    e("Stick","Component","critico","Refinado de Log.","Componente de armas. Feito na Artisan Workbench.",{refinedFrom:"Log",role:"Componente de arma",stack:"Sim"}),
+    e("Stone Blade","Component","critico","Refinado de Stone.","Gume que compõe a Stone Sword.",{refinedFrom:"Stone",role:"Componente de arma",stack:"Sim"}),
+    e("Bone Blade","Component","opcional","Gume de osso.","Refinado de Bone; compõe a Bone Sword.",{refinedFrom:"Bone",role:"Componente de arma",stack:"Sim"}),
+    e("Leather","Component","estendido","Couro curtido.","Refinado de Boar Hide na Tannery.",{refinedFrom:"Boar Hide",role:"Componente de armadura",stack:"Sim"}),
 
-    // --- Weapon/Tool ---
-    e("Crude Axe","Weapon/Tool","critico","A primeira ferramenta.","Craftada direto de Branches + Stone, sem refino. Corta madeira e vinhas; dano baixo. É a única arma sem etapa de refino — por isso existe cedo, antes da Workbench.",{damage:"Baixo",harvests:"Madeira, vinhas",obtain:"Craft (Cauldron/inventário)"}),
-    e("Stone Sword","Weapon/Tool","critico","Arma de corte.","Primeira arma de combate real. Também é consumida ao craftar o Flesh and Bone Spirit.",{damage:"Médio",harvests:"—",obtain:"Craft"}),
-    e("Bone Sword","Weapon/Tool","opcional","Espada de osso.","Craftada de Bone Blade + Stick.",{damage:"A definir",harvests:"—",obtain:"Craft"}),
+    // --- Tools ---
+    e("Crude Axe","Tool","critico","A primeira ferramenta.","Craftada direto de Branches + Stone, sem refino. Corta madeira e vinhas. É a única ferramenta sem etapa de refino — por isso existe cedo, antes da Workbench.",{harvests:"Madeira, vinhas, Boulders",obtain:"Craft (Cauldron/inventário)"}),
+
+    // --- Weapons ---
+    e("Stone Sword","Weapon","critico","Arma de corte.","Primeira arma de combate real. Também é consumida ao craftar o Flesh and Bone Spirit.",{damage:"Médio",obtain:"Craft"}),
+    e("Bone Sword","Weapon","opcional","Espada de osso.","Craftada de Bone Blade + Stick.",{damage:"A definir",obtain:"Craft"}),
 
     // --- Equipment ---
     e("Leather Armor","Equipment","opcional","Armadura de couro.","Craftada de Leather.",{bonus:"Defesa (a definir)",obtain:"Craft"}),
@@ -111,6 +139,12 @@ function defaultModel(){
     e("Sistema de Combate","System","critico","Como o Player enfrenta o mundo.","Combate corpo-a-corpo com armas craftadas; inimigos dropam recursos. Alimenta o loot que volta pro Cauldron.",{loop:"Equipar arma → combater → lootar",states:"—",flows:"Loot do Boar, Loot do Dutra"}),
     e("Sistema de Refino","System","critico","Recurso cru vira componente.","Estações (Workbench, Tannery) transformam recursos crus em intermediários com timer. Ponte entre coleta e craft de armas/armaduras.",{loop:"Recurso cru → estação → componente",states:"—",flows:"Refinar Stick, Stone Blade, Bone Blade, Leather"}),
     e("Captura de Espírito","System","estendido","Comandar espíritos pra interagir.","O Player comanda um espírito (Q) para agir sobre o mundo sem se expor — capturar o Sapo sem tomar veneno é o caso-âncora.",{loop:"Comandar espírito → interagir → obter recurso",states:"—",flows:"Capturar Sapo"}),
+    e("Sistema de Construção","System","estendido","Construção granular no mundo.","O Player constrói estruturas peça a peça direto no mundo (não passam pelo inventário) — foundations, walls, teto, escadas, aberturas. Snap em grid, encaixe entre peças e integridade estrutural. Consome recursos ao construir.",{loop:"Selecionar peça → gastar recursos → construir no grid",states:"—",flows:"Construir Wooden Foundation, Construir Wooden Wall"}),
+
+    // --- Buildables (peças de construção — nascem no mundo, não vão ao inventário) ---
+    e("Wooden Foundation","Buildable","estendido","Base de madeira.","Peça-base da construção. Construída direto no mundo consumindo Log; tudo mais encaixa em cima dela.",{pieceType:"foundation",buildCost:"2 Log",partOf:"Sistema de Construção"}),
+    e("Wooden Wall","Buildable","estendido","Parede de madeira.","Encaixa nas bordas de uma Foundation. Consome Log.",{pieceType:"wall",buildCost:"1 Log",partOf:"Sistema de Construção"}),
+    e("Wooden Floor","Buildable","opcional","Piso/teto de madeira.","Cobre o topo das paredes ou serve de piso para um segundo nível.",{pieceType:"roof",buildCost:"1 Log",partOf:"Sistema de Construção"}),
 
     // --- System States (sub-entidades do Cauldron) ---
     e("Cauldron Lv1","System State","critico","Cauldron restaurado.","Primeiro estado após restaurar o Cauldron com Branches. Desbloqueia a Alchemy (craft básico).",{system:"Loop do Cauldron",unlocks:"Alchemy / craft básico",reachedBy:"Restaurar com 4 Branches"}),
@@ -132,12 +166,13 @@ function defaultModel(){
     e("Devourer","Enemy","critico","O gate final do bioma.","Boss final do 1º bioma. Encerra a progressão crítica da demo; dispara o popup de wishlist.",{behavior:"A definir",hp:"A definir",damage:"A definir",drops:"—"}),
     e("Dutra","Enemy","opcional","Criatura da clareira.","Aparece em grupos de 5. Combatida com ajuda dos espíritos.",{behavior:"Grupo",hp:"A definir",damage:"A definir",drops:"Root, Mushroom"}),
 
-    // --- Areas ---
-    e("POI Inicial","Area","critico","O vale de partida.","Canyon inicial com duas sub-áreas. Onde o Player encontra o Cauldron quebrado.",{contains:"Cauldron, Branches, Stone, Mushroom",entry:"Início do jogo",exit:"Estátua da Natureza"}),
-    e("Overworld","Area","critico","O mundo aberto (Mapa 1).","Onde vivem Boar, Sapo, árvores e os POIs de Aquiles e do Devourer.",{contains:"Boar, Sapo, Regular Tree, POI do Aquiles, POI do Devourer",entry:"Estátua da Natureza",exit:"POI do Devourer"}),
-    e("POI do Aquiles","Area","critico","A arena do sub-boss.","Acessada com 2 espíritos.",{contains:"Aquiles",entry:"Gate de 2 espíritos",exit:"POI do Devourer"}),
-    e("POI do Devourer","Area","critico","A arena final.","Acessada após vencer Aquiles.",{contains:"Devourer",entry:"Derrotar Aquiles",exit:"Fim da demo"}),
-    e("POI Clareira","Area","opcional","Clareira luminosa.","Contém Dutras e Light Flowers.",{contains:"Dutra, Light Flower",entry:"A ancorar",exit:"—"})
+    // --- Locais (o eixo dos lugares; nível + aninhamento) ---
+    e("Primeiro Bioma","Local","critico","O bioma da demo.","O maior contêiner: define clima, paleta e trilha. Contém o POI Inicial, o Overworld e os POIs de boss.",{level:"Bioma",parent:"—",contains:"POI Inicial, Overworld, POI do Aquiles, POI do Devourer, POI Clareira",entry:"Início do jogo",exit:"Fim da demo (Devourer)"}),
+    e("POI Inicial","Local","critico","O vale de partida.","Canyon inicial com duas sub-áreas. Onde o Player encontra o Cauldron quebrado.",{level:"POI",parent:"Primeiro Bioma",contains:"Cauldron, Branches, Stone, Mushroom, Boulders",entry:"Início do jogo",exit:"Estátua da Natureza"}),
+    e("Overworld","Local","critico","O mundo aberto (Mapa 1).","Onde vivem Boar, Sapo, árvores e os POIs de Aquiles e do Devourer.",{level:"POI",parent:"Primeiro Bioma",contains:"Boar, Sapo, Regular Tree, POI do Aquiles, POI do Devourer",entry:"Estátua da Natureza",exit:"POI do Devourer"}),
+    e("POI do Aquiles","Local","critico","A arena do sub-boss.","Acessada com 2 espíritos.",{level:"POI",parent:"Overworld",contains:"Aquiles",entry:"Gate de 2 espíritos",exit:"POI do Devourer"}),
+    e("POI do Devourer","Local","critico","A arena final.","Acessada após vencer Aquiles.",{level:"POI",parent:"Overworld",contains:"Devourer",entry:"Derrotar Aquiles",exit:"Fim da demo"}),
+    e("POI Clareira","Local","opcional","Clareira luminosa.","Contém Dutras e Light Flowers.",{level:"POI",parent:"Overworld",contains:"Dutra, Light Flower Bush",entry:"A ancorar",exit:"—"})
   ];
 
   // Fluxos com kind (craft/refino/coleta/feed/cozinha)
@@ -166,11 +201,17 @@ function defaultModel(){
     {name:"Feed Cauldron Lv2",kind:"feed",station:"Cauldron",inputs:{Mushroom:5},out:{"Cauldron Lv2":1},path:"critico"},
     {name:"Feed Cauldron Lv3",kind:"feed",station:"Cauldron",inputs:{"Boar Meat":3,"Dead Frog":3},out:{"Cauldron Lv3":1},path:"critico"},
     {name:"Feed Cauldron Lv4",kind:"feed",station:"Cauldron",inputs:{Root:5,"Light Flower":1},out:{"Cauldron Lv4":1},path:"opcional"},
+    // build (produz peça de construção no mundo — consome recursos)
+    {name:"Construir Wooden Foundation",kind:"build",station:"—",inputs:{Log:2},out:{"Wooden Foundation":1},path:"estendido"},
+    {name:"Construir Wooden Wall",kind:"build",station:"—",inputs:{Log:1},out:{"Wooden Wall":1},path:"estendido"},
+    {name:"Construir Wooden Floor",kind:"build",station:"—",inputs:{Log:1},out:{"Wooden Floor":1},path:"opcional"},
     // coleta (drops / quebra)
     {name:"Loot do Boar",kind:"coleta",station:"—",inputs:{Boar:1},out:{"Boar Meat":1,Bone:1,"Boar Hide":1},path:"critico"},
     {name:"Loot do Dutra",kind:"coleta",station:"—",inputs:{Dutra:1},out:{Root:1,Mushroom:1},path:"opcional"},
     {name:"Capturar Sapo",kind:"coleta",station:"—",inputs:{Sapo:1},out:{"Dead Frog":1},path:"estendido"},
-    {name:"Quebrar Boulders",kind:"coleta",station:"—",inputs:{Boulders:1},out:{Stone:1},path:"estendido"}
+    {name:"Quebrar Boulders",kind:"coleta",station:"—",inputs:{Boulders:1},out:{Stone:1},path:"estendido"},
+    {name:"Cortar Regular Tree",kind:"coleta",station:"—",inputs:{"Regular Tree":1},out:{Log:1},path:"critico"},
+    {name:"Colher Light Flower Bush",kind:"coleta",station:"—",inputs:{"Light Flower Bush":1},out:{"Light Flower":1},path:"opcional"}
   ];
   const flows=rawFlows.map((f,i)=>({id:'f'+i,...f}));
 
@@ -206,20 +247,28 @@ function renderNav(){
   const s=(document.getElementById('comp-search').value||'').toLowerCase();
   const groups={};
   model.entities.forEach(e=>{ if(s&&!e.name.toLowerCase().includes(s))return; (groups[e.category]=groups[e.category]||[]).push(e); });
-  const order=Object.keys(CATEGORIES).filter(c=>groups[c]);
   const nav=document.getElementById('comp-nav'); nav.innerHTML='';
-  order.forEach(cat=>{
-    const h=document.createElement('div'); h.className='cat-header';
-    h.innerHTML=`<span class="cat-title">${CAT_ICON[cat]||''} ${esc(cat)}</span><span class="muted">${groups[cat].length}</span>`;
-    const body=document.createElement('div');
-    h.onclick=()=>body.style.display=body.style.display==='none'?'block':'none';
-    groups[cat].sort((a,b)=>a.name.localeCompare(b.name)).forEach(ent=>{
-      const it=document.createElement('div'); it.className='nav-item'+(selected===ent.name?' sel':'');
-      it.innerHTML=`<span class="nav-ic">${iconFor(ent)}</span> ${esc(ent.name)} <span class="np ${pathClass(ent.path)}">· ${PATH_LABEL[ent.path]||ent.path}</span>`;
-      it.onclick=()=>{ selected=ent.name; renderNav(); renderPage(); };
-      body.appendChild(it);
+  const superOrder=["Item","WorldObject","Actor","System","Local"];
+  superOrder.forEach(sup=>{
+    const cats=Object.keys(CATEGORIES).filter(c=>superOf(c)===sup && groups[c]);
+    if(!cats.length) return;
+    const count=cats.reduce((a,c)=>a+groups[c].length,0);
+    const sh=document.createElement('div'); sh.className='super-header';
+    sh.innerHTML=`<span>${esc(SUPERTYPES[sup]?SUPERTYPES[sup].label:sup)}</span><span class="muted">${count}</span>`;
+    nav.appendChild(sh);
+    cats.forEach(cat=>{
+      const h=document.createElement('div'); h.className='cat-header';
+      h.innerHTML=`<span class="cat-title">${CAT_ICON[cat]||''} ${esc(cat)}</span><span class="muted">${groups[cat].length}</span>`;
+      const body=document.createElement('div');
+      h.onclick=()=>body.style.display=body.style.display==='none'?'block':'none';
+      groups[cat].sort((a,b)=>a.name.localeCompare(b.name)).forEach(ent=>{
+        const it=document.createElement('div'); it.className='nav-item'+(selected===ent.name?' sel':'');
+        it.innerHTML=`<span class="nav-ic">${iconFor(ent)}</span> ${esc(ent.name)} <span class="np ${pathClass(ent.path)}">· ${PATH_LABEL[ent.path]||ent.path}</span>`;
+        it.onclick=()=>{ selected=ent.name; renderNav(); renderPage(); };
+        body.appendChild(it);
+      });
+      nav.appendChild(h); nav.appendChild(body);
     });
-    nav.appendChild(h); nav.appendChild(body);
   });
 }
 
@@ -229,23 +278,26 @@ function relationsFor(name){
   model.gates.forEach(g=>{ if(g.key.split(/\s*\+\s*/).map(x=>x.trim()).includes(name))keyFor.push(g); });
   return {producedBy,consumedIn,keyFor};
 }
-// relações estruturais adicionais lidas dos campos (sistema↔estado, estação↔sistema, área↔conteúdo)
+// relações estruturais adicionais lidas dos campos (sistema↔estado, estação↔sistema, local↔conteúdo↔aninhamento)
 function structuralRelations(ent){
-  const out={ states:[], statesOf:null, stationsOfSystem:[], systemOfStation:null, containedIn:[], contains:[] };
+  const out={ states:[], statesOf:null, stationsOfSystem:[], systemOfStation:null, containedIn:[], contains:[], parentLocal:null, childLocais:[] };
   if(ent.category==='System'){
     out.states = model.entities.filter(x=>x.category==='System State' && (x.fields.system===ent.name));
     out.stationsOfSystem = model.entities.filter(x=>x.category==='Station' && x.fields.partOf===ent.name);
   }
   if(ent.category==='System State' && ent.fields.system){ out.statesOf = findE(ent.fields.system); }
   if(ent.category==='Station' && ent.fields.partOf && ent.fields.partOf!=='—'){ out.systemOfStation = findE(ent.fields.partOf); }
-  // área contém entidades (por nome citado no campo contains) e onde esta entidade é citada
-  model.entities.filter(x=>x.category==='Area').forEach(area=>{
-    const list=(area.fields.contains||'').split(/,\s*/).map(s=>s.trim());
-    if(list.includes(ent.name)) out.containedIn.push(area);
+  // Local contém entidades (campo contains) e onde esta entidade é citada
+  model.entities.filter(x=>x.category==='Local').forEach(loc=>{
+    const list=(loc.fields.contains||'').split(/,\s*/).map(s=>s.trim());
+    if(list.includes(ent.name)) out.containedIn.push(loc);
   });
-  if(ent.category==='Area'){
+  if(ent.category==='Local'){
     const list=(ent.fields.contains||'').split(/,\s*/).map(s=>s.trim());
     out.contains = list.map(findE).filter(Boolean);
+    // aninhamento: pai e filhos
+    if(ent.fields.parent && ent.fields.parent!=='—') out.parentLocal = findE(ent.fields.parent);
+    out.childLocais = model.entities.filter(x=>x.category==='Local' && x.fields.parent===ent.name);
   }
   return out;
 }
@@ -262,8 +314,10 @@ function renderPage(){
   const flowPill=f=>`<span class="rel-pill" onclick="gotoFlow('${f.id}')">${esc(f.name)} <span class="muted">(${FLOW_KIND_LABEL[f.kind]||''})</span></span>`;
   let html=`<div class="page-head">
     <div><div class="page-title">${iconFor(ent)} ${esc(ent.name)}</div>${ent.nature?`<div class="page-nature">${esc(ent.nature)}</div>`:''}
-    <div class="page-badges"><span class="badge">${CAT_ICON[ent.category]||''} ${esc(ent.category)}</span><span class="badge ${pathClass(ent.path)}">${PATH_LABEL[ent.path]||ent.path}</span></div></div>
+    <div class="page-badges"><span class="badge sup">${esc(SUPERTYPES[superOf(ent.category)]?SUPERTYPES[superOf(ent.category)].label:superOf(ent.category)||'')}</span><span class="badge">${CAT_ICON[ent.category]||''} ${esc(ent.category)}</span><span class="badge ${pathClass(ent.path)}">${PATH_LABEL[ent.path]||ent.path}</span></div></div>
     <button onclick="editEntity(${JSON.stringify(ent.name)})">✎ editar</button></div>`;
+  const gloss=CATEGORIES[ent.category]&&CATEGORIES[ent.category].glossary;
+  if(gloss) html+=`<div class="cat-gloss"><span class="muted">${esc(ent.category)}:</span> ${esc(gloss)}</div>`;
   if(ent.description) html+=`<div class="page-desc">${esc(ent.description)}</div>`;
   if(stats) html+=`<div class="stat-grid">${stats}</div>`;
 
@@ -277,6 +331,8 @@ function renderPage(){
   if(str.stationsOfSystem.length) html+=`<div class="rel-section"><div class="rel-label">Estações do sistema</div>${str.stationsOfSystem.map(x=>entPill(x.name)).join('')}</div>`;
   if(str.statesOf) html+=`<div class="rel-section"><div class="rel-label">Estado do sistema</div>${entPill(str.statesOf.name)}</div>`;
   if(str.systemOfStation) html+=`<div class="rel-section"><div class="rel-label">Pertence ao sistema</div>${entPill(str.systemOfStation.name)}</div>`;
+  if(str.parentLocal) html+=`<div class="rel-section"><div class="rel-label">Dentro de</div>${entPill(str.parentLocal.name)}</div>`;
+  if(str.childLocais.length) html+=`<div class="rel-section"><div class="rel-label">Locais aninhados</div>${str.childLocais.map(x=>entPill(x.name)).join('')}</div>`;
   if(str.contains.length) html+=`<div class="rel-section"><div class="rel-label">Contém</div>${str.contains.map(x=>entPill(x.name)).join('')}</div>`;
   if(str.containedIn.length) html+=`<div class="rel-section"><div class="rel-label">Encontrado em</div>${str.containedIn.map(x=>entPill(x.name)).join('')}</div>`;
 
@@ -390,23 +446,22 @@ function deleteFlow(){ if(!editingFlow||!confirm('Apagar?'))return; model.flows=
 // --- Análise: entidades fora dos fluxos de CRAFT ---
 function renderOrphans(){
   const box=document.getElementById('orphans-root'); if(!box) return;
-  // "craft-like": craft, refino, cozinha (produzem itens). coleta/feed não contam como craft.
-  const craftKinds=new Set(['craft','refino','cozinha']);
+  // "craft-like": craft, refino, cozinha, build (produzem itens/estruturas). coleta/feed não contam.
+  const craftKinds=new Set(['craft','refino','cozinha','build']);
   const inCraft=new Set(), inAnyFlow=new Set();
   model.flows.forEach(f=>{
     const names=[...Object.keys(f.inputs||{}),...Object.keys(f.out||{})];
     names.forEach(n=>{ inAnyFlow.add(n); if(craftKinds.has(f.kind)) inCraft.add(n); });
   });
-  // categorias que esperamos ver em craft (itens, componentes, consumíveis, equipamento, armas)
-  const craftableCats=new Set(['Item','Consumable','Equipment','Weapon/Tool']);
-  const rawCats=new Set(['Raw Resource','Gatherable']);
-  const structuralCats=new Set(['Area','System','System State','Player','Station','Creature','Enemy','Spirit']);
+  // craftáveis = subtipos de Item que NÃO são Raw Resource (Raw nunca é craftado), + Buildables (produzidos por build)
+  const isCraftable=e=> (isItem(e.category) && e.category!=='Raw Resource') || isBuildable(e.category);
+  const isRawSource=e=> e.category==='Raw Resource' || e.category==='Gatherable';
 
   const missingFromCraft=[], rawUnusedInCraft=[], structural=[];
   model.entities.forEach(e=>{
     if(inCraft.has(e.name)) return;
-    if(craftableCats.has(e.category)) missingFromCraft.push(e);
-    else if(rawCats.has(e.category)) { if(!inAnyFlow.has(e.name)) rawUnusedInCraft.push(e); }
+    if(isCraftable(e)) missingFromCraft.push(e);
+    else if(isRawSource(e)) { if(!inAnyFlow.has(e.name)) rawUnusedInCraft.push(e); }
     else structural.push(e);
   });
   // strings citadas em fluxos que não são entidades
@@ -488,7 +543,139 @@ function refreshDatalists(){ document.getElementById('ent-datalist').innerHTML=m
 function exportModel(){ const b=new Blob([JSON.stringify(model,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='moonrite-modelo.json'; a.click(); }
 function importModel(ev){ const f=ev.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ model=JSON.parse(r.result); persist(); renderAll(); }catch(e){ alert('Inválido.'); } }; r.readAsText(f); ev.target.value=''; }
 function resetModel(){ if(!confirm('Restaurar padrão? Edições locais serão perdidas.'))return; model=defaultModel(); selected=null; persist(); renderAll(); }
-function renderAll(){ renderNav(); renderPage(); renderFlows(); renderOrphans(); renderProgression(); renderAutoriaList(); refreshDatalists(); }
+// ============================================================
+// COMBINAÇÕES — explorador de craft (1,2,3 itens com repetição)
+// ============================================================
+let comboPicks = new Set();
+// só Items (supertipo) entram no gerador — exclui Gatherable, Station, Buildable, Actor
+function comboItems(){ return model.entities.filter(e=>isItem(e.category)).map(e=>e.name); }
+function comboKey(arr){ return arr.slice().sort().join(' + '); }
+// multiconjuntos de tamanho k (com repetição), ordem não importa
+function multisets(items, k){
+  const res=[];
+  (function rec(start, combo){
+    if(combo.length===k){ res.push(combo.slice()); return; }
+    for(let i=start;i<items.length;i++){ combo.push(items[i]); rec(i, combo); combo.pop(); }
+  })(0, []);
+  return res;
+}
+function ensureComboStore(){ if(!model.combos) model.combos={}; } // key -> {marked, note}
+
+function renderComboPicker(){
+  ensureComboStore();
+  const s=(document.getElementById('combo-search').value||'').toLowerCase();
+  const box=document.getElementById('combo-picker');
+  const items=comboItems().filter(n=>!s||n.toLowerCase().includes(s)).sort();
+  box.innerHTML=items.map(n=>{
+    const e=findE(n);
+    return `<label class="combo-pick"><input type="checkbox" ${comboPicks.has(n)?'checked':''} onchange="toggleComboPick('${esc(n).replace(/'/g,"\\'")}')"> ${iconForName(n)} ${esc(n)} <span class="muted" style="margin-left:auto;font-size:10px">${esc(e?e.category:'')}</span></label>`;
+  }).join('');
+  document.getElementById('combo-pick-count').textContent = comboPicks.size?`(${comboPicks.size} marcados)`:'';
+}
+function toggleComboPick(n){ if(comboPicks.has(n))comboPicks.delete(n); else comboPicks.add(n); renderComboPicker(); renderCombos(); }
+function comboSelectAllVisible(){ const s=(document.getElementById('combo-search').value||'').toLowerCase(); comboItems().filter(n=>!s||n.toLowerCase().includes(s)).forEach(n=>comboPicks.add(n)); renderComboPicker(); renderCombos(); }
+function comboClear(){ comboPicks.clear(); renderComboPicker(); renderCombos(); }
+
+function renderCombos(){
+  ensureComboStore();
+  const root=document.getElementById('combos-root');
+  const picks=[...comboPicks].sort();
+  if(picks.length<1){ root.innerHTML='<span class="muted">Marque ao menos um item à esquerda.</span>'; document.getElementById('combo-count').textContent=''; return; }
+  const sizeSel=document.getElementById('combo-size').value;
+  const onlyMarked=document.getElementById('combo-only-marked').checked;
+  const sizes = sizeSel==='all'?[1,2,3]:[parseInt(sizeSel)];
+  let all=[];
+  sizes.forEach(k=>{ multisets(picks,k).forEach(c=>all.push(c)); });
+  // aplica filtro "só marcadas"
+  let rows=all.map(c=>{ const key=comboKey(c); const meta=model.combos[key]||{marked:false,note:''}; return {c,key,meta}; });
+  if(onlyMarked) rows=rows.filter(r=>r.meta.marked);
+  document.getElementById('combo-count').textContent = rows.length+' combinaç'+(rows.length===1?'ão':'ões');
+  if(rows.length>400){ root.innerHTML=`<span class="muted">${rows.length} combinações — muitas pra exibir de forma útil. Reduza os itens marcados (5–8 é o ideal) ou filtre por tamanho.</span>`; return; }
+  root.innerHTML = rows.map(r=>{
+    // conta repetições pra exibir "2× Stone"
+    const counts={}; r.c.forEach(n=>counts[n]=(counts[n]||0)+1);
+    const expr=Object.entries(counts).map(([n,q])=>`${q>1?q+'× ':''}${iconForName(n)} ${esc(n)}`).join(' + ');
+    return `<div class="combo-row ${r.meta.marked?'marked':''}">
+      <span class="mk" onclick="toggleComboMark('${r.key.replace(/'/g,"\\'")}')" title="marcar como ideia">${r.meta.marked?'★':'☆'}</span>
+      <span class="combo-expr">${expr}</span>
+      <span class="combo-note"><input type="text" value="${esc(r.meta.note||'')}" placeholder="tema / ideia…" onchange="setComboNote('${r.key.replace(/'/g,"\\'")}', this.value)"></span>
+      <span class="combo-actions"><button onclick="promoteCombo('${r.key.replace(/'/g,"\\'")}')" title="virar receita no compêndio">→ receita</button></span>
+    </div>`;
+  }).join('');
+}
+function toggleComboMark(key){ ensureComboStore(); const m=model.combos[key]||{marked:false,note:''}; m.marked=!m.marked; model.combos[key]=m; persist(); renderCombos(); }
+function setComboNote(key,val){ ensureComboStore(); const m=model.combos[key]||{marked:false,note:''}; m.note=val; model.combos[key]=m; persist(); }
+function promoteCombo(key){
+  // transforma a combinação numa receita de craft (abre o form já preenchido)
+  const parts=key.split(' + ');
+  const counts={}; parts.forEach(n=>counts[n]=(counts[n]||0)+1);
+  const meta=(model.combos&&model.combos[key])||{};
+  document.querySelector('[data-tab=autoria]').click();
+  editingFlow=null;
+  const el=document.getElementById('flow-form');
+  el.innerHTML=flowFormHTML({kind:'craft',path:'estendido',name:meta.note?('Craft: '+meta.note):'',out:{},station:'Cauldron',inputs:counts});
+  show('flow-form'); hide('entity-form'); hide('gate-form');
+  const box=document.getElementById('ff-inputs'); box.innerHTML='';
+  Object.entries(counts).forEach(([n,q])=>addFfInput(n,q));
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function renderAll(){ renderNav(); renderPage(); renderFlows(); renderOrphans(); renderProgression(); renderAutoriaList(); refreshDatalists(); renderComboPicker(); renderCombos(); renderOntology(); }
+
+// ============================================================
+// ONTOLOGIA — glossário + diagrama abstrato
+// ============================================================
+function renderOntology(){
+  const gbox=document.getElementById('onto-glossary'); if(!gbox) return;
+  const superOrder=["Item","WorldObject","Actor","System","Local"];
+  gbox.innerHTML=superOrder.map(sup=>{
+    const cats=Object.keys(CATEGORIES).filter(c=>superOf(c)===sup);
+    const catRows=cats.map(c=>{
+      const count=model.entities.filter(e=>e.category===c).length;
+      return `<div class="onto-cat"><div class="oc-name">${CAT_ICON[c]||''} ${esc(c)} <span class="muted">· ${count}</span></div><div class="oc-desc">${esc(CATEGORIES[c].glossary||'')}</div></div>`;
+    }).join('');
+    return `<div class="onto-super"><h4>${esc(SUPERTYPES[sup].label)}</h4><div class="sup-desc">${esc(SUPERTYPES[sup].glossary)}</div>${catRows}</div>`;
+  }).join('');
+
+  const dbox=document.getElementById('onto-diagram'); if(!dbox) return;
+  dbox.innerHTML=ontologyDiagramSVG();
+}
+function ontologyDiagramSVG(){
+  // diagrama abstrato: 5 supertipos (Item, WorldObject, Actor, System, Local) e as relações-chave
+  const C={Item:'#1D9E75',World:'#BA7517',Actor:'#534AB7',Sys:'#5F5E5A',Local:'#378ADD'};
+  return `<svg width="100%" viewBox="0 0 680 520" style="max-width:680px">
+  <defs><marker id="oarr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round"/></marker></defs>
+  <rect x="20" y="20" width="315" height="150" rx="10" fill="none" stroke="${C.Item}" stroke-width="1"/>
+  <text x="30" y="40" fill="${C.Item}" font-family="Spectral,serif" font-size="14" font-weight="600">Item — entra no inventário</text>
+  ${['Raw Resource','Component','Tool','Weapon','Equipment','Consumable'].map((c,i)=>{const x=30+(i%3)*100,y=52+Math.floor(i/3)*54;return `<rect x="${x}" y="${y}" width="92" height="44" rx="6" fill="${C.Item}22" stroke="${C.Item}" stroke-width="0.5"/><text x="${x+46}" y="${y+27}" text-anchor="middle" fill="var(--text)" font-size="11">${c}</text>`;}).join('')}
+  <rect x="345" y="20" width="315" height="150" rx="10" fill="none" stroke="${C.World}" stroke-width="1"/>
+  <text x="355" y="40" fill="${C.World}" font-family="Spectral,serif" font-size="14" font-weight="600">World Object — não vai ao inventário</text>
+  ${['Gatherable','Station','Buildable'].map((c,i)=>{const x=355+i*100,y=52;return `<rect x="${x}" y="${y}" width="92" height="44" rx="6" fill="${C.World}22" stroke="${C.World}" stroke-width="0.5"/><text x="${x+46}" y="${y+27}" text-anchor="middle" fill="var(--text)" font-size="11">${c}</text>`;}).join('')}
+  <text x="355" y="122" fill="var(--text-dim)" font-size="10.5">Buildable colapsa foundation/wall/roof/stair/opening num campo.</text>
+  <rect x="20" y="185" width="315" height="90" rx="10" fill="none" stroke="${C.Actor}" stroke-width="1"/>
+  <text x="30" y="205" fill="${C.Actor}" font-family="Spectral,serif" font-size="14" font-weight="600">Actor — vivo / agente</text>
+  ${['Player','Spirit','Creature','Enemy'].map((c,i)=>{const x=30+i*76,y=216;return `<rect x="${x}" y="${y}" width="70" height="40" rx="6" fill="${C.Actor}22" stroke="${C.Actor}" stroke-width="0.5"/><text x="${x+35}" y="${y+25}" text-anchor="middle" fill="var(--text)" font-size="11">${c}</text>`;}).join('')}
+  <rect x="345" y="185" width="315" height="90" rx="10" fill="none" stroke="${C.Sys}" stroke-width="1"/>
+  <text x="355" y="205" fill="${C.Sys}" font-family="Spectral,serif" font-size="14" font-weight="600">System — regras</text>
+  ${['System','System State'].map((c,i)=>{const x=355+i*150,y=216;return `<rect x="${x}" y="${y}" width="140" height="40" rx="6" fill="${C.Sys}22" stroke="${C.Sys}" stroke-width="0.5"/><text x="${x+70}" y="${y+25}" text-anchor="middle" fill="var(--text)" font-size="11">${c}</text>`;}).join('')}
+  <rect x="20" y="290" width="640" height="86" rx="10" fill="none" stroke="${C.Local}" stroke-width="1"/>
+  <text x="30" y="310" fill="${C.Local}" font-family="Spectral,serif" font-size="14" font-weight="600">Local — os lugares (eixo próprio, hierárquico)</text>
+  ${['Bioma','POI','Sub-área'].map((c,i)=>{const x=30+i*130,y=322;return `<rect x="${x}" y="${y}" width="120" height="40" rx="6" fill="${C.Local}22" stroke="${C.Local}" stroke-width="0.5"/><text x="${x+60}" y="${y+21}" text-anchor="middle" fill="var(--text)" font-size="11">${c}</text><text x="${x+60}" y="${y+34}" text-anchor="middle" fill="var(--text-dim)" font-size="9">nível (campo)</text>`;}).join('')}
+  <text x="440" y="342" fill="var(--text-dim)" font-size="10.5">Aninham: Bioma ⊃ POI ⊃ Sub-área.</text>
+  <text x="440" y="358" fill="var(--text-dim)" font-size="10.5">Um Local contém Actors,</text>
+  <text x="440" y="372" fill="var(--text-dim)" font-size="10.5">World Objects, Stations, Items.</text>
+  <text x="40" y="410" fill="var(--text-dim)" font-size="12" font-family="Spectral,serif" font-weight="600">Relações-chave (as arestas):</text>
+  ${[
+    'Gatherable →dropsItem→ Item (Raw Resource)',
+    'Enemy / Creature →dropsItem→ Item',
+    'Item + Item →craftedAt (Station)→ Item',
+    'Item →feeds→ System → State →unlocks→ acesso',
+    'Recursos →build→ Buildable (nasce no mundo)',
+    'Local →contains→ entidades ; Local →dentro de→ Local',
+    'Key (Item/Spirit) →gates→ Local / State'
+  ].map((t,i)=>`<text x="40" y="${430+i*15}" fill="var(--text-dim)" font-size="11.5">• ${t}</text>`).join('')}
+  </svg>`;
+}
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{ btn.addEventListener('click',()=>{
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -496,11 +683,13 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{ btn.addEventListener('click
   btn.classList.add('active'); document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
 }); });
 
-// migração: se o modelo salvo for da versão antiga (sem System/kind/3 paths), recria
+// migração: recria se o modelo salvo for de versão anterior à taxonomia com supertipos
 function modelIsCurrent(m){
   if(!m||!m.entities||!m.flows) return false;
   if(!m.flows[0]||!('kind' in m.flows[0])) return false;
-  if(!m.entities.some(e=>e.category==='System')) return false;
+  // taxonomia rigorosa mais recente: eixo Local + Buildable colapsado
+  if(!m.entities.some(e=>e.category==='Local')) return false;
+  if(!m.entities.some(e=>e.category==='Buildable')) return false;
   return true;
 }
 model=store.get('mr_model');
